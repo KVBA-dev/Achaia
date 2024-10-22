@@ -25,6 +25,10 @@ public class Server {
     public const string METHOD_PUT = "PUT";
     public const string METHOD_PATCH = "PATCH";
     public const string METHOD_DELETE = "DELETE";
+    public const string METHOD_HEAD = "HEAD";
+    public const string METHOD_TRACE = "TRACE";
+    public const string METHOD_OPTIONS = "OPTIONS";
+    public const string METHOD_CONNECT = "CONNECT";
 
     public Logger logger = new();
 
@@ -34,6 +38,10 @@ public class Server {
         routes[METHOD_POST] = [];
         routes[METHOD_PATCH] = [];
         routes[METHOD_PUT] = [];
+        routes[METHOD_HEAD] = [];
+        routes[METHOD_TRACE] = [];
+        routes[METHOD_CONNECT] = [];
+        routes[METHOD_OPTIONS] = [];
     }
 
     public void POST(string route, HandlerFunc func) => Add(METHOD_POST, route, func);
@@ -41,6 +49,10 @@ public class Server {
     public void DELETE(string route, HandlerFunc func) => Add(METHOD_DELETE, route, func);
     public void PUT(string route, HandlerFunc func) => Add(METHOD_PUT, route, func);
     public void GET(string route, HandlerFunc func) => Add(METHOD_GET, route, func);
+    public void HEAD(string route, HandlerFunc func) => Add(METHOD_HEAD, route, func);
+    public void TRACE(string route, HandlerFunc func) => Add(METHOD_TRACE, route, func);
+    public void OPTIONS(string route, HandlerFunc func) => Add(METHOD_OPTIONS, route, func);
+    public void CONNECT(string route, HandlerFunc func) => Add(METHOD_CONNECT, route, func);
 
     public void Add(string method, string route, HandlerFunc func) {
         routes[method].Add(new Route{
