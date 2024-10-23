@@ -7,11 +7,6 @@ using System.Collections.Generic;
 namespace Achaia;
 using HandlerFunc = Func<Context, byte[]>;
 
-internal struct Route {
-    public string route;
-    public HandlerFunc func;
-}
-
 public class Server {
     /// <summary>
     /// keys are HTTP methods, values are paths
@@ -19,39 +14,30 @@ public class Server {
     private readonly Dictionary<string, RouteNode?> routes = [];
     private HttpListener listener = new();
     private bool running = true;
-    public const string METHOD_POST = "POST";
-    public const string METHOD_GET = "GET";
-    public const string METHOD_PUT = "PUT";
-    public const string METHOD_PATCH = "PATCH";
-    public const string METHOD_DELETE = "DELETE";
-    public const string METHOD_HEAD = "HEAD";
-    public const string METHOD_TRACE = "TRACE";
-    public const string METHOD_OPTIONS = "OPTIONS";
-    public const string METHOD_CONNECT = "CONNECT";
 
     public Logger logger = new();
 
     public Server() {
-        routes[METHOD_DELETE] = null;
-        routes[METHOD_GET] = null;
-        routes[METHOD_POST] = null;
-        routes[METHOD_PATCH] = null;
-        routes[METHOD_PUT] = null;
-        routes[METHOD_HEAD] = null;
-        routes[METHOD_TRACE] = null;
-        routes[METHOD_CONNECT] = null;
-        routes[METHOD_OPTIONS] = null;
+        routes[Method.DELETE] = null;
+        routes[Method.GET] = null;
+        routes[Method.POST] = null;
+        routes[Method.PATCH] = null;
+        routes[Method.PUT] = null;
+        routes[Method.HEAD] = null;
+        routes[Method.TRACE] = null;
+        routes[Method.CONNECT] = null;
+        routes[Method.OPTIONS] = null;
     }
 
-    public void POST(string route, HandlerFunc func) => Add(METHOD_POST, route, func);
-    public void PATCH(string route, HandlerFunc func) => Add(METHOD_PATCH, route, func);
-    public void DELETE(string route, HandlerFunc func) => Add(METHOD_DELETE, route, func);
-    public void PUT(string route, HandlerFunc func) => Add(METHOD_PUT, route, func);
-    public void GET(string route, HandlerFunc func) => Add(METHOD_GET, route, func);
-    public void HEAD(string route, HandlerFunc func) => Add(METHOD_HEAD, route, func);
-    public void TRACE(string route, HandlerFunc func) => Add(METHOD_TRACE, route, func);
-    public void OPTIONS(string route, HandlerFunc func) => Add(METHOD_OPTIONS, route, func);
-    public void CONNECT(string route, HandlerFunc func) => Add(METHOD_CONNECT, route, func);
+    public void POST(string route, HandlerFunc func) => Add(Method.POST, route, func);
+    public void PATCH(string route, HandlerFunc func) => Add(Method.PATCH, route, func);
+    public void DELETE(string route, HandlerFunc func) => Add(Method.DELETE, route, func);
+    public void PUT(string route, HandlerFunc func) => Add(Method.PUT, route, func);
+    public void GET(string route, HandlerFunc func) => Add(Method.GET, route, func);
+    public void HEAD(string route, HandlerFunc func) => Add(Method.HEAD, route, func);
+    public void TRACE(string route, HandlerFunc func) => Add(Method.TRACE, route, func);
+    public void OPTIONS(string route, HandlerFunc func) => Add(Method.OPTIONS, route, func);
+    public void CONNECT(string route, HandlerFunc func) => Add(Method.CONNECT, route, func);
 
     public void Add(string method, string route, HandlerFunc func) {
         if (routes[method] is null) {
@@ -62,7 +48,7 @@ public class Server {
     }
 
     public void Static(string route, string path) {
-        Add(METHOD_GET, route + ":file", ctx => StaticHandler(ctx, path));
+        Add(Method.GET, route + ":file", ctx => StaticHandler(ctx, path));
     }
 
     private byte[] StaticHandler(Context ctx, string path) {
@@ -94,27 +80,6 @@ public class Server {
             Console.WriteLine(logger.LogResponse(ctx.Response));
             await ctx.Send(data);
         }
-    }
-
-    private bool MatchRoutes(Context ctx, string route, string path) {
-        string[] routeSliced = route.Split('/');
-        string[] pathSliced = path.Split('/');
-
-        if (routeSliced.Length != pathSliced.Length) {
-            return false;
-        }
-
-        for (int i = 0; i < routeSliced.Length; i++) {
-            if (routeSliced[i].StartsWith(':')) {
-                ctx.Params.Add(routeSliced[i].Substring(1), pathSliced[i]);
-                continue;
-            }
-
-            if (!routeSliced[i].Equals(pathSliced[i], StringComparison.OrdinalIgnoreCase)) {
-                return false;
-            }
-        }
-        return true;
     }
 
     public void Listen(ushort port) => Listen("localhost", port);
