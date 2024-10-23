@@ -141,6 +141,16 @@ public class Server {
 
     }
 
+    public void ShowAllRoutes() {
+        foreach (var pair in routes) {
+            if (pair.Value is null) {
+                continue;
+            }
+            Console.WriteLine(pair.Key);
+            pair.Value.PrintTree();
+        } 
+    }
+
     ~Server() {
         Console.WriteLine("closing...");
         listener.Close();
