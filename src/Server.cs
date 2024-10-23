@@ -13,11 +13,10 @@ internal struct Route {
 }
 
 public class Server {
-    private readonly Dictionary<string, List<Route>> routes = [];
     /// <summary>
-    /// keys are routes, values are paths
+    /// keys are HTTP methods, values are paths
     /// </summary>
-    private readonly Dictionary<string, Node> routeTrees = [];
+    private readonly Dictionary<string, RouteNode?> routes = [];
     private HttpListener listener = new();
     private bool running = true;
     public const string METHOD_POST = "POST";
@@ -33,15 +32,15 @@ public class Server {
     public Logger logger = new();
 
     public Server() {
-        routes[METHOD_DELETE] = [];
-        routes[METHOD_GET] = [];
-        routes[METHOD_POST] = [];
-        routes[METHOD_PATCH] = [];
-        routes[METHOD_PUT] = [];
-        routes[METHOD_HEAD] = [];
-        routes[METHOD_TRACE] = [];
-        routes[METHOD_CONNECT] = [];
-        routes[METHOD_OPTIONS] = [];
+        routes[METHOD_DELETE] = null;
+        routes[METHOD_GET] = null;
+        routes[METHOD_POST] = null;
+        routes[METHOD_PATCH] = null;
+        routes[METHOD_PUT] = null;
+        routes[METHOD_HEAD] = null;
+        routes[METHOD_TRACE] = null;
+        routes[METHOD_CONNECT] = null;
+        routes[METHOD_OPTIONS] = null;
     }
 
     public void POST(string route, HandlerFunc func) => Add(METHOD_POST, route, func);
@@ -55,10 +54,11 @@ public class Server {
     public void CONNECT(string route, HandlerFunc func) => Add(METHOD_CONNECT, route, func);
 
     public void Add(string method, string route, HandlerFunc func) {
-        routes[method].Add(new Route{
-            route = route,
-            func = func
-        });
+        if (routes[method] is null) {
+            routes[method] = new(null, "/");
+            routes[method].SetFunction(func);
+        }
+        routes[method].AddRoute(route).SetFunction(func);
     }
 
     public void Static(string route, string path) {
@@ -84,18 +84,12 @@ public class Server {
             Console.Write(logger.LogRequest(ctx.Request));
             byte[] data;
             string path = ctx.Request.Url?.AbsolutePath.Substring(1);
-            Route? selectedRoute = null;
-            foreach (Route route in routes[ctx.Request.HttpMethod]) {
-                if (MatchRoutes(ctx, route.route, ctx.Request.Url?.AbsolutePath)) {
-                    selectedRoute = route;
-                    break;
-                }
-            }
-            if (selectedRoute is null) {
+            RouteNode? node = routes[ctx.Request.HttpMethod]?.Find(ctx, ctx.Request.Url?.AbsolutePath);
+            if (node is null) {
                 data = ctx.NoData(400);
             }
             else {
-                data = ((Route)selectedRoute).func(ctx);
+                data = node?.func(ctx);
             }
             Console.WriteLine(logger.LogResponse(ctx.Response));
             await ctx.Send(data);

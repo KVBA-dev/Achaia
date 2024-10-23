@@ -1,63 +1,75 @@
 using System;
+using System.Linq;
+using System.Text;
 using System.Collections.Generic;
 
 namespace Achaia;
-using HandlerFunc = Func<Context, byte[]>;
 
-internal class Node {
-    public readonly List<Node> children = [];
-    public Node? parent = null;
-    public bool IsLeaf => children.Count == 0;
-    public string route = string.Empty;
-    public string? staticContent = null;
-    public HandlerFunc func;
+public class RouteNode {
+    public readonly List<RouteNode> children = new();
+    public readonly string path;
+    public Func<Context, byte[]> func = (ctx) => Array.Empty<byte>();
+    public readonly bool isRoot;
 
-    public void Insert(Span<string> route) {
-        if (Find(route) is not null) {
-            return;
-        }
-
+    public RouteNode(RouteNode? parent, string path) {
+        parent?.children.Add(this);
+        this.path = path;
+        isRoot = parent is null;
     }
 
-    public Node? Find(Span<string> route) {
-        if (route[0] != this.route) {
-            return null;
-        }
-        if (route.Length == 1) {
+    public RouteNode? Find(Context ctx, string path) {
+        var splitPath = path.Split('/').Where(s => s.Length > 0).ToArray();
+
+        if (splitPath.Length == 0) {
             return this;
         }
-        Node? result = null;
-        foreach (Node n in children) {
-            result = n.Find(route[1..]);
-            if (result is not null) {
-                break;
+
+        foreach(RouteNode n in children) {
+            if (n.path.Equals(splitPath[0])) {
+                StringBuilder builder = new();
+                builder.AppendJoin('/', splitPath.Skip(1));
+                return n.Find(ctx, builder.ToString());
+            }
+
+            if (n.path.StartsWith(':')) {                
+                ctx.Params.Add(n.path.Substring(1), splitPath[0]);
+                StringBuilder builder = new();
+                builder.AppendJoin('/', splitPath.Skip(1));
+                return n.Find(ctx, builder.ToString());
             }
         }
-        return result;
+        return null;
     }
-}
 
-internal class RouteTree {
-    public Node? root = null;
+    public RouteNode AddRoute(string route) {
+        if (!isRoot) {
+            return this;
+        }
+        return AddRoute(route.Split('/').Where(s => s.Length > 0).ToArray().AsSpan());
+    }
 
-    public void Insert(Route route) {
-        if (route.route == "/") {
-            if (root is not null) {
-                return;
+    private RouteNode AddRoute(Span<string> route) {
+        if (route.Length == 0) {
+            return this;
+        }
+        foreach (RouteNode n in children) {
+            if (n.path == route[0]) {
+                return n.AddRoute(route[1..]);
             }
-            root = new() {
-                route = route.route,
-                func = route.func
-            };
-            return;
         }
-
-        Span<string> splitRoute = route.route.Split('/').AsSpan();
-        if (root.Find(splitRoute) is not null) {
-            return;
-        }
-        root.Insert(splitRoute);
-        
+        RouteNode newNode = new(this, route[0]);
+        return newNode.AddRoute(route[1..]);
     }
-    
+
+    public void SetFunction(Func<Context, byte[]> func) => this.func = func;
+
+    public void PrintTree(int indent = 0) {
+        for (int i = 0; i < indent; i++) { 
+            Console.Write(' '); 
+        }
+        Console.WriteLine(path);
+        foreach(RouteNode n in children) {
+            n.PrintTree(indent + 4);
+        }
+    }
 }
