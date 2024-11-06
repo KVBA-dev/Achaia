@@ -28,6 +28,7 @@ server.Listen(8080);
 Current features:
 - Easy defining of the routes of all HTTP verbs
 - Route parameters, starting with colon sign, which can be used to pass data via routes themselves
+- JSON requests and responses support
 
 ## Obtaining
 Simply clone this repository into your project or, if you prefer to use a DLL, clone this repository into a directory and run `dotnet build`, then copy the resulting files to your project.
