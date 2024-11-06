@@ -11,17 +11,21 @@ internal static class TextFMT {
     public static string Reset() => "\x1b[0m";
     public static string Bold() => "\x1b[1m";
     public static string FormatMethod(string method) {
-        return $"{MethodColour(method)} {PadRight(method, 7)}{Reset()}";
+        return $"{MethodColour(method)} {PadRight(method, 7),7} {Reset()}";
     }
     public static string FormatStatus(int status) {
         return $"{ResponseStatusColour(status)} {status} {Reset()}";
     }
     public static string MethodColour(string method) => method switch {
-        Server.METHOD_POST => Colours(Colour.BLUE, Colour.BLACK),
-        Server.METHOD_GET => Colours(Colour.GREEN, Colour.BLACK),
-        Server.METHOD_PUT => Colours(Colour.PURPLE, Colour.BLACK),
-        Server.METHOD_PATCH => Colours(Colour.YELLOW, Colour.BLACK),
-        Server.METHOD_DELETE => Colours(Colour.RED, Colour.BLACK),
+        Method.POST => Colours(Colour.BLUE, Colour.BLACK),
+        Method.GET => Colours(Colour.GREEN, Colour.BLACK),
+        Method.PUT => Colours(Colour.PURPLE, Colour.BLACK),
+        Method.PATCH => Colours(Colour.YELLOW, Colour.BLACK),
+        Method.DELETE => Colours(Colour.RED, Colour.BLACK),
+        Method.TRACE => Colours(Colour.YELLOW, Colour.BLACK),
+        Method.CONNECT => Colours(Colour.GREEN, Colour.BLACK),
+        Method.OPTIONS => Colours(Colour.PURPLE, Colour.BLACK),
+        Method.HEAD => Colours(Colour.WHITE, Colour.BLACK),
         _ => ""
     };
 

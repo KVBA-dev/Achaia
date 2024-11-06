@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
@@ -10,26 +11,51 @@ public class Context {
     public HttpListenerRequest Request => ctx.Request;
     public HttpListenerResponse Response => ctx.Response;
     public Dictionary<string, string> Params { get; init; }
+    internal string RequestContent {private get; set; }
     public Context(HttpListenerContext ctx) {
         this.ctx = ctx;
         Params = new();
     }
+
+    public T? GetJsonBody<T>() {
+        T? obj;
+        try {
+            obj = JsonSerializer.Deserialize<T>(RequestContent);
+        }
+        catch {
+            obj = default;
+        }
+        return obj;
+    }
+
     public byte[] Text(int status, string text) {
-        ctx.Response.StatusCode = status;
-        byte[] data = Encoding.UTF8.GetBytes(text);
-        return data;
+        Response.ContentType = "text/plain";
+        Response.StatusCode = status;
+        return Encoding.UTF8.GetBytes(text);
+    }
+
+    public byte[] HTML(int status, string html) {
+        Response.ContentType = "text/html";
+        Response.StatusCode = status;
+        return Encoding.UTF8.GetBytes(html);
     }
 
     public byte[] NoData(int status) {
-        ctx.Response.StatusCode = status;
+        Response.StatusCode = status;
         return [];
     }
 
     public async Task Send(byte[] data) {
-        ctx.Response.ContentType = "text/html";
-        ctx.Response.ContentEncoding = Encoding.UTF8;
-        ctx.Response.ContentLength64 = data.LongLength;
-        await ctx.Response.OutputStream.WriteAsync(data);
-        ctx.Response.Close();
+        Response.ContentEncoding = Encoding.UTF8;
+        Response.ContentLength64 = data.LongLength;
+        await Response.OutputStream.WriteAsync(data);
+        Response.Close();
+    }
+
+    public byte[] JSON<T>(int status, T obj) {
+        string json = JsonSerializer.Serialize(obj);
+        Response.ContentType = "text/json";
+        Response.StatusCode = status;
+        return Encoding.UTF8.GetBytes(json);
     }
 }

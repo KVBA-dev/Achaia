@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Net;
+using System.Web;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
@@ -15,7 +16,7 @@ public class Server {
     private HttpListener listener = new();
     private bool running = true;
 
-    public Logger logger = new();
+    public ILogger? logger = null;
 
     public Server() {
         routes[Method.DELETE] = null;
@@ -51,10 +52,13 @@ public class Server {
         Add(Method.GET, route + ":file", ctx => StaticHandler(ctx, path));
     }
 
+    public void UseLogger(ILogger logger) {
+        this.logger = logger;
+    }
+
     private byte[] StaticHandler(Context ctx, string path) {
         string pwd = Environment.CurrentDirectory;
         string fullpath = $"{pwd}{path}\\{ctx.Params["file"]}";
-        Console.WriteLine(fullpath);
         if (!File.Exists(fullpath)) {
             return ctx.NoData(404);
         }
@@ -67,23 +71,34 @@ public class Server {
             HttpListenerContext http_ctx = await listener.GetContextAsync();
             Context ctx = new(http_ctx);
 
-            Console.Write(logger.LogRequest(ctx.Request));
+            logger?.LogRequest(ctx.Request);
             byte[] data;
             string path = ctx.Request.Url?.AbsolutePath.Substring(1);
             RouteNode? node = routes[ctx.Request.HttpMethod]?.Find(ctx, ctx.Request.Url?.AbsolutePath);
+
+            // foreach(var key in ctx.Request.QueryString.AllKeys) {
+            //     Console.WriteLine(ctx.Request.QueryString[key]);
+            // }
+
+            string body;
+            using (StreamReader reader = new(ctx.Request.InputStream)) {
+                body = await reader.ReadToEndAsync();
+            }
+            ctx.RequestContent = body;
+
             if (node is null) {
                 data = ctx.NoData(400);
             }
             else {
                 data = node?.func(ctx);
             }
-            Console.WriteLine(logger.LogResponse(ctx.Response));
+            logger?.LogResponse(ctx.Response);
             await ctx.Send(data);
         }
     }
 
     public void Listen(ushort port) => Listen("localhost", port);
-    private void DrawIntro() {
+    private static void DrawIntro() {
         Console.WriteLine("===================");
         Console.WriteLine($"{TextFMT.BGColour(Colour.RED)}  {TextFMT.BGColour(Colour.YELLOW)}  {TextFMT.BGColour(Colour.GREEN)}  {TextFMT.Reset()}");
         Console.Write($"{TextFMT.BGColour(Colour.YELLOW)}  {TextFMT.BGColour(Colour.GREEN)}  {TextFMT.BGColour(Colour.BLUE)}  {TextFMT.Reset()}  ");
