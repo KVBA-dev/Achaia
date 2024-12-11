@@ -4,11 +4,14 @@ using System.Net;
 using System.Web;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Net.WebSockets;
 
 namespace Achaia;
-using HandlerFunc = Func<Context, byte[]>;
+using HandlerFunc = Func<Context, Task<byte[]>>;
 
-public class Server {
+public class Server
+{
     /// <summary>
     /// keys are HTTP methods, values are paths
     /// </summary>
@@ -18,7 +21,8 @@ public class Server {
 
     public ILogger? logger = null;
 
-    public Server() {
+    public Server()
+    {
         routes[Method.DELETE] = null;
         routes[Method.GET] = null;
         routes[Method.POST] = null;
@@ -40,34 +44,46 @@ public class Server {
     public void OPTIONS(string route, HandlerFunc func) => Add(Method.OPTIONS, route, func);
     public void CONNECT(string route, HandlerFunc func) => Add(Method.CONNECT, route, func);
 
-    public void Add(string method, string route, HandlerFunc func) {
-        if (routes[method] is null) {
+    public void Add(string method, string route, HandlerFunc func)
+    {
+        if (routes[method] is null)
+        {
             routes[method] = new(null, "/");
             routes[method].SetFunction(func);
         }
         routes[method].AddRoute(route).SetFunction(func);
     }
 
-    public void Static(string route, string path) {
+    public void WebSocket()
+    {
+    }
+
+    public void Static(string route, string path)
+    {
         Add(Method.GET, route + ":file", ctx => StaticHandler(ctx, path));
     }
 
-    public void UseLogger(ILogger logger) {
+    public void UseLogger(ILogger logger)
+    {
         this.logger = logger;
     }
 
-    private byte[] StaticHandler(Context ctx, string path) {
+    private async Task<byte[]> StaticHandler(Context ctx, string path)
+    {
         string pwd = Environment.CurrentDirectory;
-        string fullpath = $"{pwd}{path}\\{ctx.Params["file"]}";
-        if (!File.Exists(fullpath)) {
+        string fullpath = $"{pwd}{path}/{ctx.Params["file"]}";
+        if (!File.Exists(fullpath))
+        {
             return ctx.NoData(404);
         }
-        byte[] data = File.ReadAllBytes(fullpath);
+        byte[] data = await File.ReadAllBytesAsync(fullpath);
         return data;
     }
 
-    private async Task HandleConnections() {
-        while (running) {
+    private async Task HandleConnections()
+    {
+        while (running)
+        {
             HttpListenerContext http_ctx = await listener.GetContextAsync();
             Context ctx = new(http_ctx);
 
@@ -76,21 +92,20 @@ public class Server {
             string path = ctx.Request.Url?.AbsolutePath.Substring(1);
             RouteNode? node = routes[ctx.Request.HttpMethod]?.Find(ctx, ctx.Request.Url?.AbsolutePath);
 
-            // foreach(var key in ctx.Request.QueryString.AllKeys) {
-            //     Console.WriteLine(ctx.Request.QueryString[key]);
-            // }
-
             string body;
-            using (StreamReader reader = new(ctx.Request.InputStream)) {
+            using (StreamReader reader = new(ctx.Request.InputStream))
+            {
                 body = await reader.ReadToEndAsync();
             }
             ctx.RequestContent = body;
 
-            if (node is null) {
+            if (node is null)
+            {
                 data = ctx.NoData(400);
             }
-            else {
-                data = node?.func(ctx);
+            else
+            {
+                data = await node?.func(ctx);
             }
             logger?.LogResponse(ctx.Response);
             await ctx.Send(data);
@@ -98,7 +113,9 @@ public class Server {
     }
 
     public void Listen(ushort port) => Listen("localhost", port);
-    private static void DrawIntro() {
+
+    private static void DrawIntro()
+    {
         Console.WriteLine("===================");
         Console.WriteLine($"{TextFMT.BGColour(Colour.RED)}  {TextFMT.BGColour(Colour.YELLOW)}  {TextFMT.BGColour(Colour.GREEN)}  {TextFMT.Reset()}");
         Console.Write($"{TextFMT.BGColour(Colour.YELLOW)}  {TextFMT.BGColour(Colour.GREEN)}  {TextFMT.BGColour(Colour.BLUE)}  {TextFMT.Reset()}  ");
@@ -106,9 +123,12 @@ public class Server {
         Console.Write($"{TextFMT.BGColour(Colour.GREEN)}  {TextFMT.BGColour(Colour.BLUE)}  {TextFMT.BGColour(Colour.PURPLE)}  {TextFMT.Reset()}  ");
         Console.WriteLine("v0.0.1");
         Console.WriteLine("===================");
-    } 
-    public void Listen(string address, ushort port) {
-        AppDomain.CurrentDomain.ProcessExit += (_, _) => {
+    }
+
+    public void Listen(string address, ushort port)
+    {
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
             Console.WriteLine("closing...");
             running = false;
             listener.Close();
@@ -121,17 +141,21 @@ public class Server {
 
     }
 
-    public void ShowAllRoutes() {
-        foreach (var pair in routes) {
-            if (pair.Value is null) {
+    public void ShowAllRoutes()
+    {
+        foreach (var pair in routes)
+        {
+            if (pair.Value is null)
+            {
                 continue;
             }
             Console.WriteLine(pair.Key);
             pair.Value.PrintTree();
-        } 
+        }
     }
 
-    ~Server() {
+    ~Server()
+    {
         Console.WriteLine("closing...");
         listener.Close();
     }
